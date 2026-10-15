@@ -19,11 +19,10 @@ def test_schema_sql_core_ddl_components():
     assert "book_status AS ENUM" in content
     assert "user_role AS ENUM" in content
 
-    # All 4 Tables
+    # Core Tables
     assert "CREATE TABLE IF NOT EXISTS profiles" in content
     assert "CREATE TABLE IF NOT EXISTS books" in content
     assert "CREATE TABLE IF NOT EXISTS loans" in content
-    assert "CREATE TABLE IF NOT EXISTS maintenance_logs" in content
 
     # Vector & Indexing
     assert "books_embedding_idx ON books USING hnsw (embedding vector_cosine_ops);" in content

@@ -9,8 +9,7 @@ def test_seed_books_count_and_status_distribution():
     counts = Counter(b["status"] for b in SEED_BOOKS)
     assert counts["AVAILABLE"] == 6
     assert counts["CHECKED_OUT"] == 4
-    assert counts["IN_PROCESSING"] == 3
-    assert counts["IN_MAINTENANCE"] == 2
+    assert counts["IN_PROCESSING"] == 5
 
 
 def test_seed_books_fields_complete():
@@ -39,14 +38,8 @@ def test_seed_books_unique_isbns():
     assert len(isbns) == len(set(isbns))
 
 
-def test_seed_books_overdue_and_maintenance_helpers():
-    """Verify overdue loan item and damage notes exist."""
+def test_seed_books_overdue_helper():
+    """Verify overdue loan item exists."""
     overdue_books = [b for b in SEED_BOOKS if b.get("is_overdue") is True]
     assert len(overdue_books) == 1
     assert overdue_books[0]["status"] == "CHECKED_OUT"
-
-    maintenance_books = [b for b in SEED_BOOKS if b["status"] == "IN_MAINTENANCE"]
-    assert len(maintenance_books) == 2
-    for mb in maintenance_books:
-        assert "initial_damage_note" in mb
-        assert len(mb["initial_damage_note"]) > 10

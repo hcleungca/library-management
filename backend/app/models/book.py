@@ -9,14 +9,13 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.loan import Loan
-    from app.models.maintenance import MaintenanceLog
 
 
 class Book(Base):
     """Book catalog and physical inventory ORM model.
 
     Each row represents a discrete physical inventory copy tracked through
-    the reverse logistics lifecycle (AVAILABLE, CHECKED_OUT, IN_PROCESSING, IN_MAINTENANCE).
+    the reverse logistics lifecycle (AVAILABLE, CHECKED_OUT, IN_PROCESSING).
     Includes a 1536-dimensional vector embedding for semantic search.
     """
 
@@ -88,10 +87,6 @@ class Book(Base):
     # Relationships
     loans: Mapped[list["Loan"]] = relationship(
         "Loan",
-        back_populates="book",
-    )
-    maintenance_logs: Mapped[list["MaintenanceLog"]] = relationship(
-        "MaintenanceLog",
         back_populates="book",
     )
 

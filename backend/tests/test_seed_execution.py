@@ -53,7 +53,6 @@ def test_seed_database_idempotent_execution():
         "profiles": 2,
         "books": 15,
         "loans": 4,
-        "maintenance_logs": 2,
     }
 
 

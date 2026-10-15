@@ -1,10 +1,9 @@
-"""Curated 15-book seed dataset across all four physical inventory lifecycle states.
+"""Curated 15-book seed dataset across three physical inventory lifecycle states.
 
 States:
 - 6 AVAILABLE (ready for immediate checkout)
 - 4 CHECKED_OUT (3 active, 1 overdue)
-- 3 IN_PROCESSING (returned items awaiting librarian triage/reshelving)
-- 2 IN_MAINTENANCE (flagged with physical damage for reverse logistics triage)
+- 5 IN_PROCESSING (returned items awaiting librarian triage/reshelving)
 """
 
 from typing import Any
@@ -246,9 +245,6 @@ SEED_BOOKS: list[dict[str, Any]] = [
         "status": "IN_PROCESSING",
     },
 
-    # -------------------------------------------------------------------------
-    # 4. IN_MAINTENANCE BOOKS (2)
-    # -------------------------------------------------------------------------
     {
         "title": "Structure and Interpretation of Computer Programs",
         "author": "Harold Abelson, Gerald Jay Sussman",
@@ -263,11 +259,7 @@ SEED_BOOKS: list[dict[str, Any]] = [
             "that form the bedrock of programming language theory."
         ),
         "cover_image_url": "https://covers.openlibrary.org/b/isbn/9780262510875-L.jpg",
-        "status": "IN_MAINTENANCE",
-        "initial_damage_note": (
-            "Spine adhesive cracked along the central signatures; front endpaper loose and detached "
-            "from binding hinge. Requires archival PVA adhesive re-gluing and binding press clamp."
-        ),
+        "status": "IN_PROCESSING",
     },
     {
         "title": "Pattern Recognition and Machine Learning",
@@ -283,11 +275,7 @@ SEED_BOOKS: list[dict[str, Any]] = [
             "and statistical decision theory powering contemporary machine learning systems."
         ),
         "cover_image_url": "https://covers.openlibrary.org/b/isbn/9780387310732-L.jpg",
-        "status": "IN_MAINTENANCE",
-        "initial_damage_note": (
-            "Liquid spill staining across lower corner of pages 14 through 28 causing warped page margins. "
-            "Pages remain legible; requires desiccant blotter drying and fungal disinfection review."
-        ),
+        "status": "IN_PROCESSING",
     },
 ]
 

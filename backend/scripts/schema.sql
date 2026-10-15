@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 2. Custom Enumeration Types
 DO $$ BEGIN
-    CREATE TYPE book_status AS ENUM ('AVAILABLE', 'CHECKED_OUT', 'IN_PROCESSING', 'IN_MAINTENANCE');
+    CREATE TYPE book_status AS ENUM ('AVAILABLE', 'CHECKED_OUT', 'IN_PROCESSING');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -77,16 +77,4 @@ CREATE TABLE IF NOT EXISTS loans (
 
 -- Concurrency Safety: Partial unique index guaranteeing at most 1 active loan per physical book
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_loan_per_book ON loans (book_id) WHERE status = 'ACTIVE';
-
--- 6. Maintenance Logs Table (Reverse Logistics & Triage)
-CREATE TABLE IF NOT EXISTS maintenance_logs (
-    id SERIAL PRIMARY KEY,
-    book_id INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    logged_by UUID NOT NULL REFERENCES profiles(id),
-    damage_description TEXT NOT NULL,
-    severity VARCHAR(50) NOT NULL DEFAULT 'MODERATE',
-    recommended_action TEXT,
-    resolved_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 

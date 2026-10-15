@@ -14,11 +14,10 @@ from app.schemas.book import (
 
 
 def test_book_status_enum():
-    """Verify all 4 reverse logistics lifecycle statuses exist."""
+    """Verify all 3 reverse logistics lifecycle statuses exist."""
     assert BookStatus.AVAILABLE == "AVAILABLE"
     assert BookStatus.CHECKED_OUT == "CHECKED_OUT"
     assert BookStatus.IN_PROCESSING == "IN_PROCESSING"
-    assert BookStatus.IN_MAINTENANCE == "IN_MAINTENANCE"
 
 
 def test_book_create_valid_and_defaults():

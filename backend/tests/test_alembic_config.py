@@ -16,7 +16,7 @@ def test_alembic_ini_file_exists():
 
 
 def test_alembic_env_metadata_binding():
-    """Verify target_metadata contains all 4 application tables for migrations."""
+    """Verify target_metadata contains application tables for migrations."""
     assert Base.metadata is not None
     tables = set(Base.metadata.tables.keys())
-    assert {"profiles", "books", "loans", "maintenance_logs"}.issubset(tables)
+    assert {"profiles", "books", "loans"}.issubset(tables)

@@ -51,7 +51,7 @@ def test_checkout_book_not_available():
         title="Unavailable Book",
         author="Author",
         isbn=isbn,
-        status="IN_MAINTENANCE",
+        status="IN_PROCESSING",
         publication_year=2021,
     )
     db.add(book)

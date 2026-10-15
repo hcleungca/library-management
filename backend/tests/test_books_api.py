@@ -26,7 +26,7 @@ def test_list_books_success():
 
 def test_list_books_status_filter():
     """Verify filtering by book status."""
-    for status in ("AVAILABLE", "CHECKED_OUT", "IN_PROCESSING", "IN_MAINTENANCE"):
+    for status in ("AVAILABLE", "CHECKED_OUT", "IN_PROCESSING"):
         response = client.get(f"/api/books?status={status}")
         assert response.status_code == 200
         data = response.json()

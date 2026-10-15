@@ -1,15 +1,14 @@
 """Database seeding execution script.
 
 Provisions demo user accounts, catalogs the 15 curated seed books,
-creates active loan records (including overdue items), and generates
-maintenance triage logs for physical inventory lifecycle demonstration.
+and creates active loan records (including overdue items) for lifecycle demonstration.
 """
 
 import uuid
 from datetime import UTC, datetime, timedelta
 
 from app.db.session import SessionLocal
-from app.models import Book, Loan, MaintenanceLog, Profile
+from app.models import Book, Loan, Profile
 from scripts.seed_data import SEED_BOOKS
 
 
@@ -40,7 +39,6 @@ def seed_database() -> dict[str, int]:
         "profiles": 0,
         "books": 0,
         "loans": 0,
-        "maintenance_logs": 0,
     }
 
     try:
@@ -51,7 +49,7 @@ def seed_database() -> dict[str, int]:
             full_name="Demo Patron",
             role="PATRON",
         )
-        librarian = get_or_create_profile(
+        get_or_create_profile(
             db,
             email="librarian@example.com",
             full_name="Demo Librarian",
@@ -122,30 +120,6 @@ def seed_database() -> dict[str, int]:
                     db.flush()
                 summary["loans"] += 1
 
-            # 4. Create maintenance logs for IN_MAINTENANCE books
-            if book.status == "IN_MAINTENANCE":
-                existing_log = (
-                    db.query(MaintenanceLog)
-                    .filter(
-                        MaintenanceLog.book_id == book.id,
-                        MaintenanceLog.resolved_at.is_(None),
-                    )
-                    .first()
-                )
-                if not existing_log:
-                    log = MaintenanceLog(
-                        book_id=book.id,
-                        logged_by=librarian.id,
-                        damage_description=book_data.get(
-                            "initial_damage_note",
-                            "Flagged during intake inspection for conservation repair.",
-                        ),
-                        severity="MODERATE",
-                    )
-                    db.add(log)
-                    db.flush()
-                summary["maintenance_logs"] += 1
-
         db.commit()
 
         print("=" * 60)
@@ -153,7 +127,6 @@ def seed_database() -> dict[str, int]:
         print(f"  • Profiles verified/created : {summary['profiles']}")
         print(f"  • Books cataloged           : {summary['books']}")
         print(f"  • Active loans provisioned  : {summary['loans']}")
-        print(f"  • Maintenance logs recorded : {summary['maintenance_logs']}")
         print("=" * 60)
 
         return summary
