@@ -61,6 +61,13 @@ def test_list_books_search_by_title_and_author():
     assert data_author["total"] >= 1
     assert any("martin" in b["author"].lower() for b in data_author["items"])
 
+    # Search by summary keyword
+    res_summary = client.get("/api/books?search=consensus")
+    assert res_summary.status_code == 200
+    data_summary = res_summary.json()
+    assert data_summary["total"] >= 1
+    assert any("consensus" in (b["summary"] or "").lower() for b in data_summary["items"])
+
 
 def test_list_books_pagination():
     """Verify skip and limit parameters control pagination."""
@@ -385,7 +392,7 @@ def test_delete_book_checked_out_blocked():
 
 
 def test_delete_book_success():
-    """Verify DELETE /api/books/{book_id} deletes the book and returns HTTP 204."""
+    """Verify DELETE /api/books/{book_id} hard-deletes a book with no loan history and frees ISBN."""
     import time
 
     from app.core.auth import create_demo_jwt
@@ -417,7 +424,144 @@ def test_delete_book_success():
     )
     assert res.status_code == 204
 
-    # Verify book is gone
-    get_res = client.get(f"/api/books/{book_id}")
-    assert get_res.status_code == 404
+    # Verify book is completely removed from DB (hard deleted)
+    db = SessionLocal()
+    deleted_row = db.query(Book).filter(Book.id == book_id).first()
+    db.close()
+    assert deleted_row is None
+
+    # Verify ISBN is freed up for a new book
+    recreate_res = client.post(
+        "/api/books",
+        json={
+            "title": "Recreated Book with Same ISBN",
+            "author": "New Author",
+            "isbn": isbn,
+        },
+        headers={"Authorization": f"Bearer {librarian_token}"},
+    )
+    assert recreate_res.status_code == 201
+    new_id = recreate_res.json()["id"]
+
+    # Cleanup
+    db = SessionLocal()
+    db.query(Book).filter(Book.id == new_id).delete()
+    db.commit()
+    db.close()
+
+
+def test_delete_book_with_past_history_soft_deletes():
+    """Verify deleting a book with past loan history soft-deletes it and frees ISBN."""
+    import time
+    import uuid
+    from datetime import UTC, datetime, timedelta
+
+    from app.core.auth import create_demo_jwt
+    from app.db.session import SessionLocal
+    from app.models.book import Book
+    from app.models.loan import Loan
+    from app.models.profile import Profile
+    from app.schemas.auth import UserRole
+
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    patron_token, patron_user = create_demo_jwt(UserRole.PATRON)
+    isbn = f"978{int(time.time() * 1000)}"[:13]
+
+    db = SessionLocal()
+    # Ensure profile exists in DB
+    profile = db.query(Profile).filter(Profile.id == patron_user.id).first()
+    if not profile:
+        profile = Profile(
+            id=patron_user.id,
+            email=patron_user.email,
+            role="PATRON",
+            full_name=patron_user.full_name,
+        )
+        db.add(profile)
+        db.flush()
+
+    # Create book
+    book = Book(
+        title="Historical Book",
+        author="Historical Author",
+        isbn=isbn,
+        status="AVAILABLE",
+        publication_year=2020,
+    )
+    db.add(book)
+    db.flush()
+    book_id = book.id
+
+    # Create a completed (RETURNED) past loan
+    past_loan = Loan(
+        book_id=book_id,
+        user_id=patron_user.id,
+        borrowed_at=datetime.now(UTC) - timedelta(days=20),
+        due_date=datetime.now(UTC) - timedelta(days=6),
+        returned_at=datetime.now(UTC) - timedelta(days=5),
+        status="RETURNED",
+    )
+    db.add(past_loan)
+    db.commit()
+    loan_id = past_loan.id
+    db.close()
+
+    try:
+        # Delete book via API
+        del_res = client.delete(
+            f"/api/books/{book_id}",
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+        assert del_res.status_code == 204
+
+        # Catalog and single GET should now return 404
+        get_res = client.get(f"/api/books/{book_id}")
+        assert get_res.status_code == 404
+
+        # Verify book row still exists in DB as DECOMMISSIONED with ISBN freed
+        db = SessionLocal()
+        book_row = db.query(Book).filter(Book.id == book_id).first()
+        assert book_row is not None
+        assert book_row.status == "DECOMMISSIONED"
+        assert book_row.isbn is None
+        assert f"Former ISBN: {isbn}" in book_row.summary
+        db.close()
+
+        # Verify patron's past loan history still renders without 500
+        my_loans_res = client.get(
+            "/api/circulation/my-loans",
+            headers={"Authorization": f"Bearer {patron_token}"},
+        )
+        assert my_loans_res.status_code == 200
+        loans_data = my_loans_res.json()
+        matching_loan = next((l for l in loans_data if l["id"] == loan_id), None)
+        assert matching_loan is not None
+        assert matching_loan["book_title"] == "Historical Book"
+
+        # Verify the freed ISBN can now be cataloged by a new book
+        new_book_res = client.post(
+            "/api/books",
+            json={
+                "title": "Brand New Edition",
+                "author": "New Author",
+                "isbn": isbn,
+            },
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+        assert new_book_res.status_code == 201
+        new_book_id = new_book_res.json()["id"]
+
+        # Cleanup new book
+        db = SessionLocal()
+        db.query(Book).filter(Book.id == new_book_id).delete()
+        db.commit()
+        db.close()
+    finally:
+        # Cleanup historical loan and book
+        db = SessionLocal()
+        db.query(Loan).filter(Loan.id == loan_id).delete()
+        db.query(Book).filter(Book.id == book_id).delete()
+        db.commit()
+        db.close()
+
 

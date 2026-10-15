@@ -88,5 +88,7 @@ class Book(Base):
     loans: Mapped[list["Loan"]] = relationship(
         "Loan",
         back_populates="book",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 

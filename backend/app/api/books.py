@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import require_role
 from app.db.session import get_db
 from app.models.book import Book
+from app.models.loan import Loan
 from app.schemas.auth import TokenUser, UserRole
 from app.schemas.book import BookCreate, BookListResponse, BookRead, BookUpdate
 
@@ -24,7 +25,7 @@ def list_books(
     db: Session = Depends(get_db),
 ) -> BookListResponse:
     """Retrieve a paginated and filtered list of books from the catalog."""
-    query = db.query(Book)
+    query = db.query(Book).filter(Book.status != "DECOMMISSIONED")
 
     if genre:
         query = query.filter(Book.genre.ilike(f"%{genre}%"))
@@ -38,6 +39,7 @@ def list_books(
             or_(
                 Book.title.ilike(search_pattern),
                 Book.author.ilike(search_pattern),
+                Book.summary.ilike(search_pattern),
             )
         )
 
@@ -53,7 +55,11 @@ def list_books(
 @router.get("/{book_id}", response_model=BookRead)
 def get_book(book_id: int, db: Session = Depends(get_db)) -> BookRead:
     """Retrieve metadata and inventory status for a specific book by ID."""
-    book = db.query(Book).filter(Book.id == book_id).first()
+    book = (
+        db.query(Book)
+        .filter(Book.id == book_id, Book.status != "DECOMMISSIONED")
+        .first()
+    )
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -92,7 +98,11 @@ def update_book(
     current_user: TokenUser = Depends(librarian_guard),
 ) -> BookRead:
     """Partially update an existing book's metadata (Librarian only)."""
-    book = db.query(Book).filter(Book.id == book_id).first()
+    book = (
+        db.query(Book)
+        .filter(Book.id == book_id, Book.status != "DECOMMISSIONED")
+        .first()
+    )
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,20 +141,58 @@ def delete_book(
     db: Session = Depends(get_db),
     current_user: TokenUser = Depends(librarian_guard),
 ) -> None:
-    """Delete a book record from the catalog (Librarian only)."""
-    book = db.query(Book).filter(Book.id == book_id).first()
+    """Delete a book record from the catalog (Librarian only).
+
+    - Mistakenly added books (zero loan history) are permanently hard-deleted, freeing their ISBN.
+    - Books with past loan history are soft-deleted (status='DECOMMISSIONED', ISBN freed) to preserve circulation audits.
+    - Books with active loans (currently checked out) cannot be deleted.
+    """
+    # Acquire exclusive DB row lock on the book to prevent concurrent checkout/return races
+    book = (
+        db.query(Book)
+        .filter(Book.id == book_id, Book.status != "DECOMMISSIONED")
+        .with_for_update()
+        .first()
+    )
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Book #{book_id} not found",
         )
 
-    if book.status == "CHECKED_OUT":
+    # 1. Active loans are protected
+    active_loan = (
+        db.query(Loan)
+        .filter(Loan.book_id == book_id, Loan.status == "ACTIVE")
+        .first()
+    )
+    if book.status == "CHECKED_OUT" or active_loan:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete book that is currently checked out by a patron",
         )
 
-    db.delete(book)
-    db.commit()
+    # 2. Check for past circulation history
+    has_loan_history = (
+        db.query(Loan)
+        .filter(Loan.book_id == book_id)
+        .first()
+        is not None
+    )
+
+    if has_loan_history:
+        # Soft delete: Decommission volume to preserve loan history, free up ISBN
+        if book.isbn:
+            orig_isbn = book.isbn
+            book.summary = (
+                f"[Decommissioned Volume - Former ISBN: {orig_isbn}]\n{book.summary or ''}"
+            ).strip()
+            book.isbn = None
+        book.status = "DECOMMISSIONED"
+        book.updated_at = datetime.now(UTC)
+        db.commit()
+    else:
+        # Hard delete: Mistakenly added book with no circulation history
+        db.delete(book)
+        db.commit()
 

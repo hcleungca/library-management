@@ -17,6 +17,7 @@ class BookStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
     CHECKED_OUT = "CHECKED_OUT"
     IN_PROCESSING = "IN_PROCESSING"
+    DECOMMISSIONED = "DECOMMISSIONED"
 
 
 class BookBase(BaseModel):
