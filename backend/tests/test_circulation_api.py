@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import time
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -675,5 +676,257 @@ def test_all_active_loans_success_and_overdue_filter():
         db.query(Book).filter(Book.id.in_([bid_active, bid_overdue])).delete(
             synchronize_session=False
         )
+        db.commit()
+        db.close()
+
+
+def test_circulation_intake_route_registered():
+    """Verify /api/circulation/intake route is registered in the FastAPI app."""
+    openapi_paths = app.openapi()["paths"]
+    assert "/api/circulation/intake" in openapi_paths
+    assert "get" in openapi_paths["/api/circulation/intake"]
+
+
+def test_intake_queue_unauthenticated():
+    """Verify unauthenticated request to /api/circulation/intake returns 401."""
+    res = client.get("/api/circulation/intake")
+    assert res.status_code == 401
+
+
+def test_intake_queue_patron_forbidden():
+    """Verify patron role cannot access the intake queue and receives 403."""
+    patron_token, _ = create_demo_jwt(UserRole.PATRON)
+    res = client.get(
+        "/api/circulation/intake",
+        headers={"Authorization": f"Bearer {patron_token}"},
+    )
+    assert res.status_code == 403
+
+
+def test_intake_queue_librarian_filtering_and_fifo_ordering():
+    """Verify librarian can fetch intake queue and receives only IN_PROCESSING books in FIFO order."""
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    db = SessionLocal()
+
+    ts = int(time.time() * 1000)
+    b_earlier = Book(
+        title=f"Intake Book Earlier {ts}",
+        author="Author A",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="IN_PROCESSING",
+        publication_year=2020,
+        updated_at=datetime.now(UTC) - timedelta(minutes=10),
+    )
+    b_later = Book(
+        title=f"Intake Book Later {ts}",
+        author="Author B",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="IN_PROCESSING",
+        publication_year=2021,
+        updated_at=datetime.now(UTC) - timedelta(minutes=5),
+    )
+    b_available = Book(
+        title=f"Available Book {ts}",
+        author="Author C",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="AVAILABLE",
+        publication_year=2022,
+    )
+    db.add_all([b_earlier, b_later, b_available])
+    db.commit()
+    db.refresh(b_earlier)
+    db.refresh(b_later)
+    db.refresh(b_available)
+
+    earlier_id = b_earlier.id
+    later_id = b_later.id
+    available_id = b_available.id
+    db.close()
+
+    try:
+        res = client.get(
+            "/api/circulation/intake",
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+        assert res.status_code == 200
+        items = res.json()
+        assert isinstance(items, list)
+
+        # Verify all items in the queue are in IN_PROCESSING status
+        for item in items:
+            assert item["status"] == "IN_PROCESSING"
+
+        # Verify our available book is not in the intake queue
+        item_ids = [item["id"] for item in items]
+        assert available_id not in item_ids
+        assert earlier_id in item_ids
+        assert later_id in item_ids
+
+        # Verify FIFO ordering: b_earlier must appear before b_later
+        idx_earlier = item_ids.index(earlier_id)
+        idx_later = item_ids.index(later_id)
+        assert idx_earlier < idx_later
+    finally:
+        db = SessionLocal()
+        db.query(Book).filter(Book.id.in_([earlier_id, later_id, available_id])).delete(
+            synchronize_session=False
+        )
+        db.commit()
+        db.close()
+
+
+def test_circulation_shelve_route_registered():
+    """Verify /api/circulation/shelve/{book_id} route is registered in the FastAPI app."""
+    openapi_paths = app.openapi()["paths"]
+    assert "/api/circulation/shelve/{book_id}" in openapi_paths
+    assert "post" in openapi_paths["/api/circulation/shelve/{book_id}"]
+
+
+def test_shelve_unauthenticated():
+    """Verify unauthenticated request to shelve endpoint returns 401."""
+    res = client.post("/api/circulation/shelve/1")
+    assert res.status_code == 401
+
+
+def test_shelve_patron_forbidden():
+    """Verify patron role cannot shelve books and receives 403."""
+    patron_token, _ = create_demo_jwt(UserRole.PATRON)
+    res = client.post(
+        "/api/circulation/shelve/1",
+        headers={"Authorization": f"Bearer {patron_token}"},
+    )
+    assert res.status_code == 403
+
+
+def test_shelve_book_not_found():
+    """Verify shelving nonexistent book returns 404."""
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    res = client.post(
+        "/api/circulation/shelve/999999",
+        headers={"Authorization": f"Bearer {librarian_token}"},
+    )
+    assert res.status_code == 404
+    assert res.json()["detail"] == "Book #999999 not found"
+
+
+def test_shelve_invalid_status_conflict():
+    """Verify shelving a book that is not in IN_PROCESSING returns 400 Bad Request."""
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    db = SessionLocal()
+
+    ts = int(time.time() * 1000)
+    book = Book(
+        title=f"Already Available {ts}",
+        author="Author",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="AVAILABLE",
+        publication_year=2021,
+    )
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    book_id = book.id
+    db.close()
+
+    try:
+        res = client.post(
+            f"/api/circulation/shelve/{book_id}",
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+        assert res.status_code == 400
+        assert "Cannot shelve book with status 'AVAILABLE'" in res.json()["detail"]
+    finally:
+        db = SessionLocal()
+        db.query(Book).filter(Book.id == book_id).delete(synchronize_session=False)
+        db.commit()
+        db.close()
+
+
+def test_shelve_success_in_processing_to_available():
+    """Verify successful shelve transitions book from IN_PROCESSING to AVAILABLE."""
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    db = SessionLocal()
+
+    ts = int(time.time() * 1000)
+    book = Book(
+        title=f"Intake Book {ts}",
+        author="Author",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="IN_PROCESSING",
+        publication_year=2021,
+    )
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    book_id = book.id
+    db.close()
+
+    try:
+        res = client.post(
+            f"/api/circulation/shelve/{book_id}",
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["id"] == book_id
+        assert data["status"] == "AVAILABLE"
+
+        # Verify database persisted state
+        db = SessionLocal()
+        refreshed = db.query(Book).filter(Book.id == book_id).first()
+        assert refreshed.status == "AVAILABLE"
+        db.close()
+    finally:
+        db = SessionLocal()
+        db.query(Book).filter(Book.id == book_id).delete(synchronize_session=False)
+        db.commit()
+        db.close()
+
+
+def test_shelve_concurrent_race_condition():
+    """Verify concurrent shelve requests on the same IN_PROCESSING book are serialized by row locking."""
+    librarian_token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    db = SessionLocal()
+
+    ts = int(time.time() * 1000)
+    book = Book(
+        title=f"Race Shelve Book {ts}",
+        author="Author",
+        isbn=f"9780{uuid.uuid4().hex[:9]}",
+        status="IN_PROCESSING",
+        publication_year=2021,
+    )
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    book_id = book.id
+    db.close()
+
+    def do_shelve():
+        c = TestClient(app)
+        return c.post(
+            f"/api/circulation/shelve/{book_id}",
+            headers={"Authorization": f"Bearer {librarian_token}"},
+        )
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future1 = executor.submit(do_shelve)
+            future2 = executor.submit(do_shelve)
+            res1 = future1.result()
+            res2 = future2.result()
+
+        status_codes = sorted([res1.status_code, res2.status_code])
+        # Exactly one request must succeed (200), and the other must be rejected (400) because status changed
+        assert status_codes == [200, 400]
+
+        # Verify final database state is AVAILABLE
+        db = SessionLocal()
+        final_book = db.query(Book).filter(Book.id == book_id).first()
+        assert final_book.status == "AVAILABLE"
+        db.close()
+    finally:
+        db = SessionLocal()
+        db.query(Book).filter(Book.id == book_id).delete(synchronize_session=False)
         db.commit()
         db.close()

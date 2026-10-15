@@ -12,6 +12,7 @@ from app.models.book import Book
 from app.models.loan import Loan
 from app.models.profile import Profile
 from app.schemas.auth import TokenUser, UserRole
+from app.schemas.book import BookRead
 from app.schemas.loan import CheckoutRequest, LoanRead, LoanWithBookRead
 
 router = APIRouter(prefix="/circulation", tags=["Circulation"])
@@ -214,4 +215,56 @@ def get_all_active_loans(
             )
         )
     return response
+
+
+@router.get("/intake", response_model=list[BookRead])
+def get_intake_queue(
+    db: Session = Depends(get_db),
+    current_user: TokenUser = Depends(librarian_guard),
+) -> list[BookRead]:
+    """Retrieve books in IN_PROCESSING awaiting intake shelving (Librarian only)."""
+    return (
+        db.query(Book)
+        .filter(Book.status == "IN_PROCESSING")
+        .order_by(Book.updated_at.asc())
+        .all()
+    )
+
+
+@router.post("/shelve/{book_id}", response_model=BookRead)
+def shelve_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: TokenUser = Depends(librarian_guard),
+) -> BookRead:
+    """Transition a book from IN_PROCESSING back to AVAILABLE with concurrency protection (Librarian only)."""
+    # Concurrency Protection: Acquire exclusive row-level lock on the book row
+    book = (
+        db.query(Book)
+        .filter(Book.id == book_id)
+        .with_for_update()
+        .first()
+    )
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Book #{book_id} not found",
+        )
+
+    if book.status != "IN_PROCESSING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Cannot shelve book with status '{book.status}'. Only items in"
+                " 'IN_PROCESSING' can be shelved."
+            ),
+        )
+
+    # State transition: IN_PROCESSING -> AVAILABLE
+    book.status = "AVAILABLE"
+    book.updated_at = datetime.now(UTC)
+
+    db.commit()
+    db.refresh(book)
+    return book
 
