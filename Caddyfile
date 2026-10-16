@@ -1,0 +1,45 @@
+{
+    # Global options
+    email {$ACME_EMAIL:admin@example.com}
+    admin off
+}
+
+# Match environment domain or fallback to local port 80
+{$DOMAIN:http://localhost} {
+    # Encode responses with zstd and gzip
+    encode zstd gzip
+
+    # Route backend API requests
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Route Swagger and OpenAPI documentation
+    handle /docs* {
+        reverse_proxy backend:8000
+    }
+    handle /openapi.json {
+        reverse_proxy backend:8000
+    }
+    handle /redoc* {
+        reverse_proxy backend:8000
+    }
+
+    # Route all other frontend requests
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    # Security Headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+
