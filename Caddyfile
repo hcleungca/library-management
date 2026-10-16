@@ -4,8 +4,8 @@
     admin off
 }
 
-# Match environment domain or fallback to local port 80
-{$DOMAIN:http://localhost} {
+# Match environment domain or listen on port 80 for any host/tunnel
+{$DOMAIN::80} {
     # Encode responses with zstd and gzip
     encode zstd gzip
 
