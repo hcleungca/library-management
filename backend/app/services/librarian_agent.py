@@ -162,7 +162,8 @@ async def run_librarian_agent(
             p.content for p in last_req.parts if isinstance(p, UserPromptPart) and isinstance(p.content, str)
         ]
         if user_texts:
-            effective_message = f"{'\n\n'.join(user_texts)}\n\n{message}"
+            joined_user_texts = "\n\n".join(user_texts)
+            effective_message = f"{joined_user_texts}\n\n{message}"
 
     try:
         run_kwargs: dict[str, Any] = {
