@@ -30,6 +30,19 @@ def test_checkout_unauthenticated():
     assert res.status_code == 401
 
 
+def test_checkout_librarian_forbidden():
+    """Verify librarian attempting checkout is rejected with HTTP 403 Forbidden."""
+    token, _ = create_demo_jwt(UserRole.LIBRARIAN)
+    res = client.post(
+        "/api/circulation/checkout",
+        json={"book_id": 1},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 403
+    assert "Only patrons are permitted to check out books" in res.json()["detail"]
+
+
+
 def test_checkout_book_not_found():
     """Verify checkout of nonexistent book returns HTTP 404."""
     token, _ = create_demo_jwt(UserRole.PATRON)

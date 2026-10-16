@@ -28,6 +28,12 @@ def checkout_book(
     current_user: TokenUser = Depends(get_current_user),
 ) -> LoanRead:
     """Check out an available book to the authenticated patron with concurrency protection."""
+    if current_user.role != UserRole.PATRON:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only patrons are permitted to check out books. Staff and librarians cannot borrow books.",
+        )
+
     # Concurrency Protection: Acquire exclusive row-level lock on the book row
     book = (
         db.query(Book)

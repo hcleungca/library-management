@@ -8,6 +8,7 @@ import { BookDetailPage } from './components/catalog/BookDetailPage';
 import { MyLoansView } from './components/circulation/MyLoansView';
 import { TriageDeskView } from './components/logistics/TriageDeskView';
 import { BookFormModal } from './components/modals/BookFormModal';
+import { LibrarianChatWidget } from './components/ai/LibrarianChatWidget';
 import { Book } from './types';
 
 export default function App() {
@@ -73,6 +74,8 @@ export default function App() {
         bookToEdit={bookToEdit}
       />
 
+      {/* Autonomous AI Librarian Floating Chat Assistant (Patrons only) */}
+      {!isLibrarian && <LibrarianChatWidget />}
     </div>
   );
 }

@@ -34,6 +34,54 @@ export interface SemanticSearchResponse {
   total_results: number;
 }
 
+export interface AgentMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string | null;
+}
+
+export interface ToolExecutionRecord {
+  tool_name: string;
+  arguments: Record<string, any>;
+  result: any;
+}
+
+export interface InteractiveCardPayload {
+  type: 'CONFIRM_BORROW' | 'BOOK_LIST' | 'ACTIVE_LOANS' | 'LOAN_RECEIPT';
+  book_id?: number;
+  title?: string;
+  author?: string;
+  cover_image_url?: string | null;
+  due_days?: number;
+  due_date?: string;
+  books?: Array<{
+    id: number;
+    title: string;
+    author: string;
+    status: BookStatus;
+    cover_image_url?: string | null;
+    similarity_score?: number;
+  }>;
+  loans?: Array<{
+    loan_id: number;
+    book_id: number;
+    title: string;
+    author: string;
+    due_date: string;
+    is_overdue?: boolean;
+  }>;
+}
+
+export interface AgentChatRequest {
+  message: string;
+  history?: AgentMessage[];
+}
+
+export interface AgentChatResponse {
+  reply: string;
+  tools_executed: ToolExecutionRecord[];
+  interactive_card?: InteractiveCardPayload | null;
+}
+
 export interface BookCreateInput {
   title: string;
   author: string;

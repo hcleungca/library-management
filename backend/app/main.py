@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.ai import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.books import router as books_router
 from app.api.circulation import router as circulation_router
@@ -29,6 +30,7 @@ app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(search_router, prefix=settings.API_V1_STR)
 app.include_router(books_router, prefix=settings.API_V1_STR)
 app.include_router(circulation_router, prefix=settings.API_V1_STR)
+app.include_router(ai_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")
