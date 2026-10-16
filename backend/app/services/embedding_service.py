@@ -25,14 +25,34 @@ def _get_embedding_model():
     if not _model_load_attempted:
         _model_load_attempted = True
         try:
+            import os
+            import tempfile
             from fastembed import TextEmbedding
 
+            # Auto-detect a guaranteed-writable cache directory for containerized/restricted runtimes
+            cache_dir = os.environ.get("FASTEMBED_CACHE_PATH")
+            if not cache_dir:
+                home_cache = os.path.expanduser("~/.cache/fastembed")
+                try:
+                    os.makedirs(home_cache, exist_ok=True)
+                    test_file = os.path.join(home_cache, ".write_test")
+                    with open(test_file, "w") as f:
+                        f.write("1")
+                    os.remove(test_file)
+                    cache_dir = home_cache
+                except Exception:
+                    cache_dir = os.path.join(tempfile.gettempdir(), "fastembed_cache")
+                    os.makedirs(cache_dir, exist_ok=True)
+
             # Use lightweight bge-small-en-v1.5 model
-            _embedding_model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
-            logger.info("FastEmbed TextEmbedding model initialized successfully.")
+            _embedding_model = TextEmbedding(
+                model_name="BAAI/bge-small-en-v1.5",
+                cache_dir=cache_dir,
+            )
+            logger.info("FastEmbed TextEmbedding model initialized successfully (cache_dir=%s).", cache_dir)
         except Exception as exc:
-            logger.debug(
-                "FastEmbed not available or running offline; using deterministic fallback generator: %s",
+            logger.warning(
+                "FastEmbed not available or failed to load (%s); using deterministic fallback generator.",
                 exc,
             )
             _embedding_model = None
