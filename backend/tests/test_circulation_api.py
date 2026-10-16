@@ -289,14 +289,13 @@ def test_return_book_by_borrower_success():
 
 def test_return_book_permission_denied():
     """Verify non-borrower patron cannot return another patron's loan."""
-    from app.core.auth import create_sso_jwt
-
     db = SessionLocal()
     borrower_token, _ = create_demo_jwt(UserRole.PATRON, db=db)
-    other_patron_token, _ = create_sso_jwt(
+    other_patron_token, _ = create_demo_jwt(
+        UserRole.PATRON,
+        db=db,
         email="other.patron@example.com",
         full_name="Other Patron",
-        db=db,
     )
     isbn = f"978{int(time.time() * 1000)}"[:13]
 

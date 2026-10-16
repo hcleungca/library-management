@@ -38,10 +38,10 @@ function GoogleIcon() {
 }
 
 export function LoginPage() {
-  const { loginAs, loginSSO, loginWithGoogle, isLoading } = useRole();
+  const { loginAs, loginWithGoogle, isLoading } = useRole();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<'google' | 'sso' | 'patron' | 'librarian' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'google' | 'patron' | 'librarian' | null>(null);
 
   const handleGoogleLogin = async () => {
     setError(null);
@@ -51,19 +51,6 @@ export function LoginPage() {
       // Supabase OAuth redirects window.location.href automatically
     } catch (err: any) {
       setError(err?.message || 'Failed to initiate Google sign-in.');
-      setPendingAction(null);
-    }
-  };
-
-  const handleSimulatedSSO = async () => {
-    setError(null);
-    setPendingAction('sso');
-    try {
-      await loginSSO();
-      navigate('/catalog');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to authenticate via simulated SSO.');
-    } finally {
       setPendingAction(null);
     }
   };
@@ -135,16 +122,9 @@ export function LoginPage() {
                 </>
               )}
             </button>
-            <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
-              <span>Authenticates directly with your Google account</span>
-              <button
-                type="button"
-                onClick={handleSimulatedSSO}
-                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 cursor-pointer"
-              >
-                or 1-click test patron
-              </button>
-            </div>
+            <p className="text-[11px] text-slate-400 px-1 pt-1 text-center">
+              Authenticates securely via Google OAuth
+            </p>
           </div>
 
           {/* Section Divider */}

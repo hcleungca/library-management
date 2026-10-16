@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.auth import create_demo_jwt, create_sso_jwt
+from app.core.auth import create_demo_jwt
 from app.db.session import get_db
 from app.schemas.auth import DemoTokenRequest, TokenResponse
 
@@ -22,19 +22,6 @@ def get_demo_token(
     """
     req = payload or DemoTokenRequest()
     token, user = create_demo_jwt(role=req.role, db=db)
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user=user,
-    )
-
-
-@router.post("/sso-token", response_model=TokenResponse)
-def get_sso_token(
-    db: Session = Depends(get_db),
-) -> TokenResponse:
-    """Issue an authentic signed JWT bearer token for a library patron authenticated via SSO."""
-    token, user = create_sso_jwt(db=db)
     return TokenResponse(
         access_token=token,
         token_type="bearer",

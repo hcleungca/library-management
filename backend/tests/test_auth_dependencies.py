@@ -73,9 +73,10 @@ def test_get_current_user_production_missing_token_raises_401(monkeypatch):
 
 
 def test_get_current_user_valid_jwt(monkeypatch):
-    """Verify valid Supabase JWT token decoding and user extraction."""
-    jwt_secret = "test-secret-key-12345678901234567890"
-    monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", jwt_secret)
+    """Verify valid JWT token decoding and user extraction."""
+    from app.core.auth import _get_signing_secret
+
+    monkeypatch.setattr(settings, "SUPABASE_URL", "https://example.supabase.co")
 
     user_id = str(uuid.uuid4())
     payload = {
@@ -86,7 +87,7 @@ def test_get_current_user_valid_jwt(monkeypatch):
             "full_name": "Test Patron",
         },
     }
-    token = jwt.encode(payload, jwt_secret, algorithm="HS256")
+    token = jwt.encode(payload, _get_signing_secret(), algorithm="HS256")
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
     mock_db = MagicMock()
@@ -101,7 +102,7 @@ def test_get_current_user_valid_jwt(monkeypatch):
 
 def test_get_current_user_invalid_jwt_raises_401(monkeypatch):
     """Verify malformed or invalid signature JWT raises HTTP 401."""
-    monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", "correct-secret")
+    monkeypatch.setattr(settings, "SUPABASE_URL", "https://example.supabase.co")
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer", credentials="invalid.token.payload"
     )
@@ -179,11 +180,10 @@ def test_create_demo_jwt_and_bearer_auth_in_production(monkeypatch):
     assert user.email == "librarian@example.com"
 
 
-def test_missing_supabase_jwt_secret_raises_500(monkeypatch):
-    """Verify demo token generation falls back to dev key and get_current_user requires URL or secret."""
+def test_missing_supabase_url_raises_500(monkeypatch):
+    """Verify get_current_user requires SUPABASE_URL to be configured."""
     from app.core.auth import create_demo_jwt
 
-    monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", "")
     monkeypatch.setattr(settings, "SUPABASE_URL", "")
     mock_db = MagicMock()
 
@@ -196,22 +196,7 @@ def test_missing_supabase_jwt_secret_raises_500(monkeypatch):
     with pytest.raises(HTTPException) as exc_validate:
         get_current_user(credentials=credentials, db=mock_db)
     assert exc_validate.value.status_code == 500
-    assert "Neither SUPABASE_URL nor SUPABASE_JWT_SECRET is configured" in exc_validate.value.detail
-
-
-def test_create_sso_jwt_and_endpoint():
-    """Verify POST /api/auth/sso-token returns valid JWT with Alex Rivera SSO patron profile."""
-    from fastapi.testclient import TestClient
-    from app.main import app
-
-    client = TestClient(app)
-    response = client.post("/api/auth/sso-token")
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["user"]["email"] == "alex.rivera@gmail.com"
-    assert "Alex Rivera" in data["user"]["full_name"]
-    assert data["user"]["role"] == "PATRON"
+    assert "SUPABASE_URL is not configured" in exc_validate.value.detail
 
 
 def test_get_auth_config_endpoint():

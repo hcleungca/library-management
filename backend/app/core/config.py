@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     # Supabase Auth & Storage
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
-    SUPABASE_JWT_SECRET: str = ""
 
     # Anthropic Claude API (PydanticAI Agent)
     ANTHROPIC_API_KEY: str = ""

@@ -128,22 +128,28 @@ DEV_FALLBACK_JWT_SECRET = "dev-demo-jwt-secret-key-for-local-development-only-12
 
 
 def _get_signing_secret() -> str:
-    """Return configured secret or fallback dev key for demo token issuance."""
-    return settings.SUPABASE_JWT_SECRET or settings.SUPABASE_KEY or DEV_FALLBACK_JWT_SECRET
+    """Return configured key or fallback dev key for demo token issuance."""
+    return settings.SUPABASE_KEY or DEV_FALLBACK_JWT_SECRET
 
 
 def create_demo_jwt(
-    role: UserRole, db: Session | None = None
+    role: UserRole,
+    db: Session | None = None,
+    email: str | None = None,
+    full_name: str | None = None,
 ) -> tuple[str, TokenUser]:
-    """Generate an authentic signed JWT bearer token for the specified demo user role."""
+    """Generate an authentic signed JWT bearer token for the specified demo or test user role."""
     secret = _get_signing_secret()
 
-    email = (
-        "librarian@example.com"
-        if role == UserRole.LIBRARIAN
-        else "patron@example.com"
-    )
-    full_name = "Demo Librarian" if role == UserRole.LIBRARIAN else "Demo Patron"
+    if email is None:
+        email = (
+            "librarian@example.com"
+            if role == UserRole.LIBRARIAN
+            else "patron@example.com"
+        )
+    if full_name is None:
+        full_name = "Demo Librarian" if role == UserRole.LIBRARIAN else "Demo Patron"
+
     demo_user = _get_or_create_user(
         email=email, full_name=full_name, role=role, db=db
     )
@@ -168,38 +174,6 @@ def create_demo_jwt(
     return token, demo_user
 
 
-def create_sso_jwt(
-    email: str = "alex.rivera@gmail.com",
-    full_name: str = "Alex Rivera (SSO)",
-    db: Session | None = None,
-) -> tuple[str, TokenUser]:
-    """Generate a signed JWT token simulating Google / SSO library patron login."""
-    secret = _get_signing_secret()
-
-    user = _get_or_create_user(
-        email=email, full_name=full_name, role=UserRole.PATRON, db=db
-    )
-    now = datetime.now(UTC)
-    payload = {
-        "sub": str(user.id),
-        "email": user.email,
-        "aud": "authenticated",
-        "role": "authenticated",
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(days=7)).timestamp()),
-        "user_metadata": {
-            "role": user.role.value,
-            "full_name": user.full_name,
-        },
-        "app_metadata": {
-            "provider": "google_sso",
-            "role": user.role.value,
-        },
-    }
-    token = jwt.encode(payload, secret, algorithm="HS256")
-    return token, user
-
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db),
@@ -207,25 +181,26 @@ def get_current_user(
     """Extract and validate authenticated user from Supabase JWT.
 
     1. Checks for Authorization header bearer token.
-    2. Decodes JWT using HS256 with settings.SUPABASE_JWT_SECRET,
-       extracts sub (UUID) and email, and queries the user's Profile from the DB.
-    3. Dev Mode Fallback: When DEBUG=True and no token is passed,
+    2. Decodes asymmetric JWT (ES256/RS256) via Supabase public JWKS endpoint (zero secret).
+    3. For local dev tokens (HS256), decodes using dev signing secret.
+    4. Extracts sub (UUID) and email, and queries/creates the user's Profile in the DB.
+    5. Dev Mode Fallback: When DEBUG=True and no token is passed,
        falls back to demo patron for convenience.
-    4. Raises HTTP 401 Unauthorized if credentials cannot be validated.
+    6. Raises HTTP 401 Unauthorized if credentials cannot be validated.
     """
     # If Bearer token is provided, validate it
     if credentials is not None and credentials.credentials:
         token = credentials.credentials
-        if not settings.SUPABASE_JWT_SECRET and not settings.SUPABASE_URL:
+        if not settings.SUPABASE_URL:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Neither SUPABASE_URL nor SUPABASE_JWT_SECRET is configured",
+                detail="SUPABASE_URL is not configured",
             )
         payload = None
-        alg = "HS256"
+        alg = "ES256"
         try:
             unverified_header = jwt.get_unverified_header(token)
-            alg = unverified_header.get("alg", "HS256")
+            alg = unverified_header.get("alg", "ES256")
         except Exception:
             pass
 
@@ -244,8 +219,8 @@ def get_current_user(
                 except jwt.PyJWTError as exc:
                     logger.debug("JWKS (%s) verification failed: %s", alg, exc)
 
-        # 2. Symmetric verification via Legacy SUPABASE_JWT_SECRET or dev signing secret (HS256)
-        if not payload:
+        # 2. Verification for local dev / demo tokens (HS256)
+        if not payload and alg == "HS256":
             secret = _get_signing_secret()
             try:
                 payload = jwt.decode(

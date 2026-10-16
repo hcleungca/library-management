@@ -20,7 +20,6 @@ export interface RoleContextType {
   isLoading: boolean;
   setRole: (role: UserRole) => Promise<void>;
   loginAs: (role: UserRole) => Promise<void>;
-  loginSSO: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   handleOAuthSession: (session: any) => Promise<void>;
   logout: () => void;
@@ -100,33 +99,6 @@ export function RoleProvider({ children }: RoleProviderProps) {
     },
     [queryClient]
   );
-
-  // Single Sign-On (SSO): Logs in as verified library Patron with dedicated SSO identity
-  const loginSSO = useCallback(async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await apiFetch<TokenResponse>('/auth/sso-token', {
-        method: 'POST',
-      });
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.access_token);
-        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(response.user));
-        localStorage.setItem(DEMO_ROLE_STORAGE_KEY, 'PATRON');
-      }
-
-      setRoleState('PATRON');
-      setCurrentUser(response.user);
-
-      // Invalidate queries so components rehydrate with the SSO token
-      await queryClient.invalidateQueries();
-    } catch (err) {
-      console.error('Failed to sign in via SSO:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [queryClient]);
 
   // Live Supabase Google OAuth Redirect
   const loginWithGoogle = useCallback(async (): Promise<void> => {
@@ -215,7 +187,6 @@ export function RoleProvider({ children }: RoleProviderProps) {
     isLoading,
     setRole,
     loginAs,
-    loginSSO,
     loginWithGoogle,
     handleOAuthSession,
     logout,
