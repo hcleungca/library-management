@@ -155,32 +155,35 @@ export function BookCard({
               )}
             </button>
           </div>
-        ) : (
-          // Patron Action: Borrow Button
+        ) : isAvailable ? (
+          // Patron Action: Borrow Button (strictly available books only)
           <button
             type="button"
-            disabled={!isAvailable || isBorrowing}
+            disabled={isBorrowing}
             onClick={handleBorrow}
-            className={`w-full inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold shadow-2xs transition-all ${
-              isAvailable
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-[0.99]'
-                : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-            }`}
+            className="w-full inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold shadow-2xs transition-all bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-[0.99]"
           >
             {isBorrowing ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                 <span>Borrowing...</span>
               </>
-            ) : isAvailable ? (
+            ) : (
               <>
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>Borrow Book</span>
               </>
+            )}
+          </button>
+        ) : (
+          // Book is unavailable (Checked Out / In Processing) - No borrow button
+          <div className="w-full py-2 px-3 rounded-lg text-xs font-medium text-center bg-slate-100 text-slate-500 border border-slate-200 select-none">
+            {book.status === 'CHECKED_OUT' ? (
+              <span className="text-amber-800 font-semibold">Currently Checked Out</span>
             ) : (
               <span>Currently {book.status.replace('_', ' ')}</span>
             )}
-          </button>
+          </div>
         )}
       </div>
     </div>

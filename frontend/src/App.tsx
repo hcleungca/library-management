@@ -9,16 +9,18 @@ import { MyLoansView } from './components/circulation/MyLoansView';
 import { TriageDeskView } from './components/logistics/TriageDeskView';
 import { BookFormModal } from './components/modals/BookFormModal';
 import { LibrarianChatWidget } from './components/ai/LibrarianChatWidget';
+import { LoginPage } from './components/auth/LoginPage';
+import { AuthCallback } from './components/auth/AuthCallback';
 import { Book } from './types';
 
 export default function App() {
-  const { isLibrarian } = useRole();
+  const { isLibrarian, isAuthenticated } = useRole();
   const navigate = useNavigate();
   const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
   const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
 
   // Fetch intake queue for live badge counter in navbar (only if librarian)
-  const { data: intakeQueue = [] } = useIntakeQueue({ enabled: isLibrarian });
+  const { data: intakeQueue = [] } = useIntakeQueue({ enabled: isLibrarian && isAuthenticated });
 
   const handleOpenAddBook = () => {
     setBookToEdit(null);
@@ -35,6 +37,17 @@ export default function App() {
     setBookToEdit(null);
   };
 
+  // Unauthenticated Barrier: Redirect unauthenticated traffic to /login (except /auth/callback)
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* Top Application Navigation Bar */}
@@ -46,6 +59,7 @@ export default function App() {
       {/* Main Viewport Router */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         <Routes>
+          <Route path="/login" element={<Navigate to="/catalog" replace />} />
           <Route path="/" element={<Navigate to="/catalog" replace />} />
           <Route
             path="/catalog"

@@ -57,6 +57,24 @@ def checkout_book(
             ),
         )
 
+    # Ensure no active loan already exists for this physical book
+    active_loan = (
+        db.query(Loan)
+        .filter(Loan.book_id == book.id, Loan.status == "ACTIVE")
+        .first()
+    )
+    if active_loan:
+        if book.status != "CHECKED_OUT":
+            book.status = "CHECKED_OUT"
+            db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Book '{book.title}' has already been checked out under active"
+                f" loan #{active_loan.id}."
+            ),
+        )
+
     # State transition: AVAILABLE -> CHECKED_OUT
     book.status = "CHECKED_OUT"
     now = datetime.now(UTC)

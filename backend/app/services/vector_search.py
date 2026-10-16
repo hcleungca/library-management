@@ -53,10 +53,26 @@ def search_books_semantic(
 
     candidate_rows = query.order_by(distance_expr.asc()).limit(limit * 2).all()
 
+    book_ids = [b.id for b, _ in candidate_rows]
+    active_loan_book_ids: set[int] = set()
+    if book_ids:
+        from app.models.loan import Loan
+
+        active_loans = (
+            db.query(Loan.book_id)
+            .filter(Loan.book_id.in_(book_ids), Loan.status == "ACTIVE")
+            .all()
+        )
+        active_loan_book_ids = {row[0] for row in active_loans}
+
     results: list[SearchResultBook] = []
     for book, distance in candidate_rows:
         dist_val = float(distance) if distance is not None else 1.0
         similarity_score = round(1.0 - dist_val, 4)
+
+        effective_status = "CHECKED_OUT" if book.id in active_loan_book_ids else book.status
+        if available_only and effective_status != "AVAILABLE":
+            continue
 
         if similarity_score >= min_similarity:
             results.append(
@@ -70,7 +86,7 @@ def search_books_semantic(
                     dewey_decimal=book.dewey_decimal,
                     summary=book.summary,
                     cover_image_url=book.cover_image_url,
-                    status=book.status,
+                    status=effective_status,
                     created_at=book.created_at,
                     updated_at=book.updated_at,
                     similarity_score=similarity_score,

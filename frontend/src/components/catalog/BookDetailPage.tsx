@@ -217,30 +217,34 @@ export function BookDetailPage({ onEditBook }: BookDetailPageProps) {
 
             {/* Patron Borrow Button */}
             {!isLibrarian && (
-              <button
-                type="button"
-                disabled={!isAvailable || isBorrowing}
-                onClick={handleBorrow}
-                className={`w-full py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center space-x-2 shadow-xs transition-all ${
-                  isAvailable
-                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-[0.99]'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                }`}
-              >
-                {isBorrowing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Processing Checkout...</span>
-                  </>
-                ) : isAvailable ? (
-                  <>
-                    <BookOpen className="w-4 h-4" />
-                    <span>Borrow This Book (14 Days)</span>
-                  </>
-                ) : (
-                  <span>Currently {book.status.replace('_', ' ')}</span>
-                )}
-              </button>
+              isAvailable ? (
+                <button
+                  type="button"
+                  disabled={isBorrowing}
+                  onClick={handleBorrow}
+                  className="w-full py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center space-x-2 shadow-xs transition-all bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-[0.99]"
+                >
+                  {isBorrowing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Processing Checkout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="w-4 h-4" />
+                      <span>Borrow This Book (14 Days)</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="w-full py-3 px-4 rounded-xl text-sm font-semibold text-center bg-slate-100 text-slate-500 border border-slate-200 select-none">
+                  {book.status === 'CHECKED_OUT' ? (
+                    <span className="text-amber-800">Currently Checked Out by a Patron</span>
+                  ) : (
+                    <span>Currently {book.status.replace('_', ' ')}</span>
+                  )}
+                </div>
+              )
             )}
 
             {/* Staff Actions */}

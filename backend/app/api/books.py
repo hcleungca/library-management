@@ -9,7 +9,13 @@ from app.db.session import get_db
 from app.models.book import Book
 from app.models.loan import Loan
 from app.schemas.auth import TokenUser, UserRole
-from app.schemas.book import BookCreate, BookListResponse, BookRead, BookUpdate
+from app.schemas.book import (
+    BookCreate,
+    BookListResponse,
+    BookRead,
+    BookStatus,
+    BookUpdate,
+)
 from app.services.embedding_service import generate_embedding
 
 router = APIRouter(prefix="/books", tags=["Books"])
@@ -47,8 +53,38 @@ def list_books(
     total = query.count()
     books = query.order_by(Book.id.asc()).offset(skip).limit(limit).all()
 
+    # Verify active loans for accurate circulation status
+    book_ids = [b.id for b in books]
+    active_loan_book_ids: set[int] = set()
+    if book_ids:
+        from app.models.loan import Loan
+
+        active_loans = (
+            db.query(Loan.book_id)
+            .filter(Loan.book_id.in_(book_ids), Loan.status == "ACTIVE")
+            .all()
+        )
+        active_loan_book_ids = {row[0] for row in active_loans}
+
+    items: list[BookRead] = []
+    needs_commit = False
+    for b in books:
+        book_dto = BookRead.model_validate(b)
+        if b.id in active_loan_book_ids:
+            if book_dto.status != BookStatus.CHECKED_OUT:
+                book_dto.status = BookStatus.CHECKED_OUT
+                b.status = "CHECKED_OUT"
+                needs_commit = True
+        items.append(book_dto)
+
+    if needs_commit:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
     return BookListResponse(
-        items=[BookRead.model_validate(b) for b in books],
+        items=items,
         total=total,
     )
 
@@ -66,7 +102,24 @@ def get_book(book_id: int, db: Session = Depends(get_db)) -> BookRead:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Book #{book_id} not found",
         )
-    return BookRead.model_validate(book)
+
+    from app.models.loan import Loan
+
+    active_loan = (
+        db.query(Loan)
+        .filter(Loan.book_id == book.id, Loan.status == "ACTIVE")
+        .first()
+    )
+    book_dto = BookRead.model_validate(book)
+    if active_loan and book_dto.status != BookStatus.CHECKED_OUT:
+        book_dto.status = BookStatus.CHECKED_OUT
+        book.status = "CHECKED_OUT"
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    return book_dto
 
 
 @router.post("", response_model=BookRead, status_code=status.HTTP_201_CREATED)

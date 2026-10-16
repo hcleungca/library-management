@@ -125,6 +125,17 @@ def seed_database() -> dict[str, int]:
                     db.add(loan)
                     db.flush()
                 summary["loans"] += 1
+            elif book.status == "AVAILABLE":
+                # Ensure no lingering active loans remain for books seeded as AVAILABLE
+                stale_loans = (
+                    db.query(Loan)
+                    .filter(Loan.book_id == book.id, Loan.status == "ACTIVE")
+                    .all()
+                )
+                for sl in stale_loans:
+                    sl.status = "RETURNED"
+                    sl.returned_at = now
+                db.flush()
 
         db.commit()
 

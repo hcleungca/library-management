@@ -156,21 +156,13 @@ export function BookTable({
                             )}
                           </button>
                         </div>
-                      ) : (
-                        // Patron Action
+                      ) : isAvailable ? (
+                        // Patron Action: Borrow button only for available books
                         <button
                           type="button"
-                          disabled={!isAvailable || isRowBorrowing}
-                          onClick={() => {
-                            if (isAvailable && !isRowBorrowing) {
-                              onBorrow?.(book);
-                            }
-                          }}
-                          className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-all ${
-                            isAvailable
-                              ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-95'
-                              : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                          }`}
+                          disabled={isRowBorrowing}
+                          onClick={() => onBorrow?.(book)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-all bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer active:scale-95"
                         >
                           {isRowBorrowing ? (
                             <>
@@ -180,10 +172,19 @@ export function BookTable({
                           ) : (
                             <>
                               <BookOpen className="w-3 h-3" />
-                              <span>{isAvailable ? 'Borrow' : 'Unavailable'}</span>
+                              <span>Borrow</span>
                             </>
                           )}
                         </button>
+                      ) : (
+                        // Unavailable Status Pill (No borrow action)
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 select-none">
+                          {book.status === 'CHECKED_OUT' ? (
+                            <span className="text-amber-800 font-semibold">Checked Out</span>
+                          ) : (
+                            book.status.replace('_', ' ')
+                          )}
+                        </span>
                       )}
                     </td>
                   </tr>

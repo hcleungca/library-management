@@ -180,19 +180,78 @@ def test_create_demo_jwt_and_bearer_auth_in_production(monkeypatch):
 
 
 def test_missing_supabase_jwt_secret_raises_500(monkeypatch):
-    """Verify missing SUPABASE_JWT_SECRET configuration raises HTTP 500."""
+    """Verify demo token generation falls back to dev key and get_current_user requires URL or secret."""
     from app.core.auth import create_demo_jwt
 
     monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", "")
+    monkeypatch.setattr(settings, "SUPABASE_URL", "")
     mock_db = MagicMock()
 
-    with pytest.raises(HTTPException) as exc_create:
-        create_demo_jwt(UserRole.PATRON)
-    assert exc_create.value.status_code == 500
-    assert "SUPABASE_JWT_SECRET is not configured" in exc_create.value.detail
+    # Demo JWT generation succeeds with dev fallback key
+    token, user = create_demo_jwt(UserRole.PATRON)
+    assert token is not None
+    assert user.role == UserRole.PATRON
 
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="any.token.here")
     with pytest.raises(HTTPException) as exc_validate:
         get_current_user(credentials=credentials, db=mock_db)
     assert exc_validate.value.status_code == 500
-    assert "SUPABASE_JWT_SECRET is not configured" in exc_validate.value.detail
+    assert "Neither SUPABASE_URL nor SUPABASE_JWT_SECRET is configured" in exc_validate.value.detail
+
+
+def test_create_sso_jwt_and_endpoint():
+    """Verify POST /api/auth/sso-token returns valid JWT with Alex Rivera SSO patron profile."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.post("/api/auth/sso-token")
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["user"]["email"] == "alex.rivera@gmail.com"
+    assert "Alex Rivera" in data["user"]["full_name"]
+    assert data["user"]["role"] == "PATRON"
+
+
+def test_get_auth_config_endpoint():
+    """Verify GET /api/auth/config returns Supabase public configuration."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.get("/api/auth/config")
+    assert response.status_code == 200
+    data = response.json()
+    assert "supabase_url" in data
+    assert "supabase_anon_key" in data
+
+
+def test_get_current_user_remote_verification_fallback(monkeypatch):
+    """Verify get_current_user falls back to Supabase remote auth when local JWT signature mismatch."""
+    from unittest.mock import patch, MagicMock
+    from app.core.auth import get_current_user
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    remote_user_id = str(uuid.uuid4())
+    remote_data = {
+        "sub": remote_user_id,
+        "email": "remote.user@gmail.com",
+        "user_metadata": {"full_name": "Remote User", "role": "PATRON"},
+        "app_metadata": {"provider": "google"},
+    }
+
+    with patch("app.core.auth._verify_supabase_token_remote", return_value=remote_data):
+        credentials = HTTPAuthorizationCredentials(
+            scheme="Bearer", credentials="mismatched.jwt.token"
+        )
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+
+        user = get_current_user(credentials=credentials, db=mock_db)
+        assert str(user.id) == remote_user_id
+        assert user.email == "remote.user@gmail.com"
+        assert user.full_name == "Remote User"
+        assert user.role == UserRole.PATRON
+
+

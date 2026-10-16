@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useRole } from '../context/RoleContext';
-import { RoleSwitcher } from './RoleSwitcher';
-import { BookOpen, BookMarked, Inbox, Plus } from 'lucide-react';
+import { BookOpen, BookMarked, Inbox, Plus, LogOut } from 'lucide-react';
 
 export interface NavbarProps {
   onOpenAddBookModal?: () => void;
@@ -10,9 +9,14 @@ export interface NavbarProps {
 }
 
 export function Navbar({ onOpenAddBookModal, intakeQueueCount = 0 }: NavbarProps) {
-  const { isLibrarian } = useRole();
+  const { isLibrarian, currentUser, logout } = useRole();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const pathname = location.pathname;
 
@@ -114,8 +118,40 @@ export function Navbar({ onOpenAddBookModal, intakeQueueCount = 0 }: NavbarProps
               </button>
             )}
 
-            {/* Role Switcher */}
-            <RoleSwitcher />
+            {/* User Profile Info & Sign Out */}
+            <div className="flex items-center space-x-2.5 pl-2 border-l border-slate-200">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-xs font-bold text-slate-800 leading-tight">
+                  {currentUser?.full_name || (isLibrarian ? 'Demo Librarian' : 'Demo Patron')}
+                </span>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                    isLibrarian
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : currentUser?.email?.includes('gmail') || currentUser?.full_name?.includes('(SSO)')
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  }`}
+                >
+                  {isLibrarian
+                    ? 'Librarian (Staff)'
+                    : currentUser?.email?.includes('gmail') || currentUser?.full_name?.includes('(SSO)')
+                    ? 'SSO Patron'
+                    : 'Demo Patron'}
+                </span>
+              </div>
+
+              {/* Sign Out Button */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 shadow-2xs transition-colors cursor-pointer"
+                title="Sign out of your session"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
 
