@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../lib/api';
-import { Book, BookCreateInput } from '../types';
+import { Book, BookCreateInput, SemanticSearchResponse } from '../types';
 
 export interface BookFilters {
   genre?: string;
@@ -22,6 +22,15 @@ export type BookUpdateInput = Partial<BookCreateInput> & {
 export interface UpdateBookPayload {
   id: number;
   data: BookUpdateInput;
+}
+
+export interface SemanticSearchParams {
+  query: string;
+  limit?: number;
+  available_only?: boolean;
+  genre?: string;
+  min_similarity?: number;
+  enabled?: boolean;
 }
 
 function buildQueryString(params?: BookFilters): string {
@@ -55,6 +64,38 @@ export function useBooks(filters?: BookFilters) {
   return useQuery<BookListResponse, Error>({
     queryKey: ['books', filters],
     queryFn: () => apiFetch<BookListResponse>(`/books${buildQueryString(filters)}`),
+  });
+}
+
+/**
+ * Hook to perform AI semantic vector search against catalog books using pgvector.
+ */
+export function useSemanticSearch(params: SemanticSearchParams) {
+  const isEnabled = (params.enabled ?? true) && params.query.trim().length >= 2;
+
+  return useQuery<SemanticSearchResponse, Error>({
+    queryKey: [
+      'books',
+      'semantic-search',
+      params.query.trim(),
+      params.limit,
+      params.available_only,
+      params.genre,
+      params.min_similarity,
+    ],
+    queryFn: () =>
+      apiFetch<SemanticSearchResponse>('/books/search', {
+        method: 'POST',
+        body: JSON.stringify({
+          query: params.query.trim(),
+          limit: params.limit ?? 20,
+          available_only: params.available_only ?? false,
+          genre: params.genre || undefined,
+          min_similarity: params.min_similarity ?? 0.2,
+        }),
+      }),
+    enabled: isEnabled,
+    staleTime: 1000 * 60 * 2, // 2 minutes cache
   });
 }
 

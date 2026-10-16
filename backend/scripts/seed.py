@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.db.session import SessionLocal
 from app.models import Book, Loan, Profile
+from app.services.embedding_service import generate_embedding
 from scripts.seed_data import SEED_BOOKS
 
 
@@ -65,6 +66,9 @@ def seed_database() -> dict[str, int]:
             isbn = book_data["isbn"]
             book = db.query(Book).filter(Book.isbn == isbn).first()
 
+            embed_text = f"{book_data['title']} {book_data['author']} {book_data.get('genre', '')} {book_data.get('summary', '')}".strip()
+            embedding_vector = generate_embedding(embed_text) if embed_text else None
+
             if not book:
                 book = Book(
                     title=book_data["title"],
@@ -76,6 +80,7 @@ def seed_database() -> dict[str, int]:
                     summary=book_data["summary"],
                     cover_image_url=book_data["cover_image_url"],
                     status=book_data["status"],
+                    embedding=embedding_vector,
                 )
                 db.add(book)
                 db.flush()
@@ -89,6 +94,7 @@ def seed_database() -> dict[str, int]:
                 book.summary = book_data["summary"]
                 book.cover_image_url = book_data["cover_image_url"]
                 book.status = book_data["status"]
+                book.embedding = embedding_vector
                 db.flush()
 
             summary["books"] += 1

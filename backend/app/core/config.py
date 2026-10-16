@@ -33,8 +33,9 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = ""
     SUPABASE_JWT_SECRET: str = ""
 
-    # OpenAI API
-    OPENAI_API_KEY: str = ""
+    # Anthropic Claude API (PydanticAI Agent)
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-haiku-5-5"
 
     # CORS Allowed Origins
     CORS_ORIGINS: list[str] = [

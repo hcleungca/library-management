@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Book } from '../../types';
-import { useBooks, useDeleteBook } from '../../hooks/useBooks';
+import { useBooks, useSemanticSearch, useDeleteBook } from '../../hooks/useBooks';
 import { useCheckoutBook } from '../../hooks/useCirculation';
 import { BookFilters, CANONICAL_GENRES } from './BookFilters';
 import { BookCard } from './BookCard';
 import { BookTable } from './BookTable';
-import { AlertCircle, CheckCircle2, RotateCcw, X, Inbox } from 'lucide-react';
+import { AlertCircle, CheckCircle2, RotateCcw, X, Inbox, Sparkles } from 'lucide-react';
 
 export interface BookCatalogViewProps {
   onEditBook?: (book: Book) => void;
@@ -22,6 +22,7 @@ export function BookCatalogView({ onEditBook }: BookCatalogViewProps) {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [selectedBookForEdit, setSelectedBookForEdit] = useState<Book | null>(null);
+  const [isSemantic, setIsSemantic] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -45,18 +46,33 @@ export function BookCatalogView({ onEditBook }: BookCatalogViewProps) {
     };
   }, []);
 
-  // Books Query
-  const {
-    data: booksData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useBooks({
-    search: search.trim() || undefined,
+  // Determine if AI semantic search is actively querying
+  const isSemanticActive = isSemantic && search.trim().length >= 2;
+
+  // Regular Books Query (disabled if semantic search is active)
+  const booksQuery = useBooks(
+    !isSemanticActive
+      ? {
+          search: search.trim() || undefined,
+          genre: selectedGenre || undefined,
+          status: selectedStatus || undefined,
+        }
+      : undefined
+  );
+
+  // Semantic Vector Search Query (enabled when isSemanticActive)
+  const semanticQuery = useSemanticSearch({
+    query: search.trim(),
     genre: selectedGenre || undefined,
-    status: selectedStatus || undefined,
+    available_only: selectedStatus === 'AVAILABLE',
+    min_similarity: 0.15,
+    enabled: isSemanticActive,
   });
+
+  const isLoading = isSemanticActive ? semanticQuery.isLoading : booksQuery.isLoading;
+  const isError = isSemanticActive ? semanticQuery.isError : booksQuery.isError;
+  const error = isSemanticActive ? semanticQuery.error : booksQuery.error;
+  const refetch = isSemanticActive ? semanticQuery.refetch : booksQuery.refetch;
 
   // Mutations
   const checkoutMutation = useCheckoutBook();
@@ -103,8 +119,13 @@ export function BookCatalogView({ onEditBook }: BookCatalogViewProps) {
     onEditBook?.(book);
   };
 
-  const books = booksData?.items || [];
-  const totalBooks = booksData?.total ?? books.length;
+  const books: Book[] = isSemanticActive
+    ? (semanticQuery.data?.results || [])
+    : (booksQuery.data?.items || []);
+
+  const totalBooks = isSemanticActive
+    ? (semanticQuery.data?.total_results ?? books.length)
+    : (booksQuery.data?.total ?? books.length);
 
   // Dynamically merge canonical genres with any custom genres in books
   const allGenres = useMemo(() => {
@@ -160,13 +181,33 @@ export function BookCatalogView({ onEditBook }: BookCatalogViewProps) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         genres={allGenres}
+        isSemantic={isSemantic}
+        onToggleSemantic={setIsSemantic}
       />
+
+      {/* Semantic Search Instruction Hint */}
+      {isSemantic && search.trim().length < 2 && (
+        <div className="mb-4 p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 flex items-center space-x-2.5 text-xs text-indigo-900 shadow-2xs">
+          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>
+            <strong>AI Semantic Search Active:</strong> Type any topic, concept, or question in natural language (e.g. <em>&quot;distributed databases and consensus&quot;</em> or <em>&quot;design patterns for reliability&quot;</em>) to find conceptually relevant books.
+          </span>
+        </div>
+      )}
 
       {/* Results Header Summary */}
       <div className="flex items-center justify-between mb-4 px-1">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          Catalog Inventory ({isLoading ? 'Loading...' : `${totalBooks} Volumes`})
-        </p>
+        <div className="flex items-center space-x-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            {isSemanticActive ? 'AI Semantic Search' : 'Catalog Inventory'} ({isLoading ? 'Searching...' : `${totalBooks} Volumes`})
+          </p>
+          {isSemanticActive && (
+            <span className="hidden sm:inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <Sparkles className="w-2.5 h-2.5 text-indigo-600" />
+              <span>Ranked by pgvector cosine similarity</span>
+            </span>
+          )}
+        </div>
         {(search || selectedGenre || selectedStatus) && (
           <button
             type="button"

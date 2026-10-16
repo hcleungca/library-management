@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Book } from '../../types';
 import { useRole } from '../../context/RoleContext';
 import { StatusBadge } from '../StatusBadge';
-import { BookOpen, Pencil, Trash2, Loader2, Bookmark, Calendar } from 'lucide-react';
+import { BookOpen, Pencil, Trash2, Loader2, Bookmark, Calendar, Sparkles } from 'lucide-react';
 
 export interface BookCardProps {
   book: Book;
@@ -63,6 +63,14 @@ export function BookCard({
           <div className="absolute top-2.5 right-2.5">
             <StatusBadge status={book.status} />
           </div>
+
+          {/* Top-Left AI Similarity Match Badge */}
+          {book.similarity_score !== undefined && (
+            <div className="absolute top-2.5 left-2.5 bg-indigo-600/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 shadow-sm border border-indigo-400/30">
+              <Sparkles className="w-2.5 h-2.5 text-amber-300 fill-amber-300" />
+              <span>{Math.round(book.similarity_score * 100)}% Match</span>
+            </div>
+          )}
 
           {/* Genre Pill on Cover */}
           {book.genre && (

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Book } from '../../types';
 import { useRole } from '../../context/RoleContext';
 import { StatusBadge } from '../StatusBadge';
-import { BookOpen, Pencil, Trash2, Loader2, Inbox } from 'lucide-react';
+import { BookOpen, Pencil, Trash2, Loader2, Inbox, Sparkles } from 'lucide-react';
 
 export interface BookTableProps {
   books: Book[];
@@ -75,6 +75,14 @@ export function BookTable({
                       <div className="text-xs text-slate-500 truncate" title={book.author}>
                         by {book.author}
                       </div>
+                      {book.similarity_score !== undefined && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <Sparkles className="w-2.5 h-2.5 text-indigo-500 fill-indigo-200" />
+                            <span>{Math.round(book.similarity_score * 100)}% Match</span>
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     {/* 2. ISBN */}

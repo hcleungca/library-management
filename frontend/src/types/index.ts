@@ -17,8 +17,21 @@ export interface Book {
   summary?: string | null;
   cover_image_url?: string | null;
   status: BookStatus;
+  similarity_score?: number;
+  cosine_distance?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface SearchResultBook extends Book {
+  similarity_score?: number;
+  cosine_distance?: number;
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  results: SearchResultBook[];
+  total_results: number;
 }
 
 export interface BookCreateInput {

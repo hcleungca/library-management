@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, LayoutGrid, List } from 'lucide-react';
+import { Search, X, LayoutGrid, List, Sparkles } from 'lucide-react';
 
 export interface BookFiltersProps {
   search: string;
@@ -11,6 +11,8 @@ export interface BookFiltersProps {
   viewMode: 'grid' | 'table';
   onViewModeChange: (mode: 'grid' | 'table') => void;
   genres?: string[];
+  isSemantic?: boolean;
+  onToggleSemantic?: (val: boolean) => void;
 }
 
 export const CANONICAL_GENRES = [
@@ -39,6 +41,8 @@ export function BookFilters({
   viewMode,
   onViewModeChange,
   genres = CANONICAL_GENRES,
+  isSemantic = false,
+  onToggleSemantic,
 }: BookFiltersProps) {
   // Local state for immediate typing feedback
   const [inputValue, setInputValue] = useState(search);
@@ -83,26 +87,61 @@ export function BookFilters({
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-xs mb-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {/* Left: Search input */}
-        <div className="relative flex-1 min-w-[220px]">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="w-4 h-4 text-slate-400" />
+        {/* Left: Search input + AI Semantic Toggle */}
+        <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              {isSemantic ? (
+                <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+              ) : (
+                <Search className="w-4 h-4 text-slate-400" />
+              )}
+            </div>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              placeholder={
+                isSemantic
+                  ? "Search by concept or problem (e.g. 'how to scale databases')..."
+                  : "Search by title, author, or keywords..."
+              }
+              className={`w-full pl-9 pr-9 py-2 rounded-lg text-sm transition-all focus:outline-none ${
+                isSemantic
+                  ? 'bg-indigo-50/30 border border-indigo-200 text-indigo-950 placeholder-indigo-400/80 focus:bg-white focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500'
+                  : 'bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
+              }`}
+            />
+            {inputValue && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            placeholder="Search by title, author, or keywords..."
-            className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-          />
-          {inputValue && (
+
+          {/* AI Semantic Toggle Button */}
+          {onToggleSemantic && (
             <button
               type="button"
-              onClick={handleClearSearch}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-              title="Clear search"
+              onClick={() => onToggleSemantic(!isSemantic)}
+              className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                isSemantic
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-indigo-600 shadow-xs hover:from-indigo-700 hover:to-violet-700'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+              title={
+                isSemantic
+                  ? 'Semantic search active: using pgvector cosine similarity'
+                  : 'Switch to AI Semantic Vector Search'
+              }
             >
-              <X className="w-4 h-4" />
+              <Sparkles className={`w-3.5 h-3.5 ${isSemantic ? 'text-amber-300 fill-amber-300' : 'text-slate-400'}`} />
+              <span>AI Semantic</span>
             </button>
           )}
         </div>

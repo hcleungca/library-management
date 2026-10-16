@@ -10,6 +10,7 @@ from app.models.book import Book
 from app.models.loan import Loan
 from app.schemas.auth import TokenUser, UserRole
 from app.schemas.book import BookCreate, BookListResponse, BookRead, BookUpdate
+from app.services.embedding_service import generate_embedding
 
 router = APIRouter(prefix="/books", tags=["Books"])
 librarian_guard = require_role(UserRole.LIBRARIAN)
@@ -84,6 +85,10 @@ def create_book(
             )
 
     book = Book(**book_in.model_dump())
+    embed_text = f"{book.title} {book.author} {book.genre or ''} {book.summary or ''}".strip()
+    if embed_text:
+        book.embedding = generate_embedding(embed_text)
+
     db.add(book)
     db.commit()
     db.refresh(book)
@@ -128,6 +133,13 @@ def update_book(
 
     for field, val in update_data.items():
         setattr(book, field, val)
+
+    # Recompute embedding if descriptive text fields changed or embedding is missing
+    content_fields = {"title", "author", "genre", "summary"}
+    if book.embedding is None or content_fields.intersection(update_data.keys()):
+        embed_text = f"{book.title} {book.author} {book.genre or ''} {book.summary or ''}".strip()
+        if embed_text:
+            book.embedding = generate_embedding(embed_text)
 
     book.updated_at = datetime.now(UTC)
     db.commit()
@@ -189,6 +201,9 @@ def delete_book(
             ).strip()
             book.isbn = None
         book.status = "DECOMMISSIONED"
+        embed_text = f"{book.title} {book.author} {book.genre or ''} {book.summary or ''}".strip()
+        if embed_text:
+            book.embedding = generate_embedding(embed_text)
         book.updated_at = datetime.now(UTC)
         db.commit()
     else:
