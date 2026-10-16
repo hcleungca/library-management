@@ -4,8 +4,8 @@
     admin off
 }
 
-# Match environment domain or listen on port 80 for any host/tunnel
-{$DOMAIN::80} {
+# Listen on container port 80 for all incoming hostnames and tunnels
+:80 {
     # Encode responses with zstd and gzip
     encode zstd gzip
 
