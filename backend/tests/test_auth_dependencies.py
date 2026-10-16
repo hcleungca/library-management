@@ -50,15 +50,15 @@ def test_require_role_librarian_inherits_patron():
     assert result == librarian_user
 
 
-def test_get_current_user_dev_mode_default_patron(monkeypatch):
-    """Verify get_current_user returns demo patron in dev mode with no token."""
+def test_get_current_user_missing_credentials_raises_401(monkeypatch):
+    """Verify get_current_user raises 401 when no token is provided even in debug mode."""
     monkeypatch.setattr(settings, "DEBUG", True)
     mock_db = MagicMock()
-    mock_db.query.return_value.filter.return_value.first.return_value = None
 
-    user = get_current_user(credentials=None, db=mock_db)
-    assert user.role == UserRole.PATRON
-    assert user.email == "patron@example.com"
+    with pytest.raises(HTTPException) as exc_info:
+        get_current_user(credentials=None, db=mock_db)
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Could not validate credentials"
 
 
 def test_get_current_user_production_missing_token_raises_401(monkeypatch):
