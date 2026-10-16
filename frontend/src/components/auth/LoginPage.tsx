@@ -2,16 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../../context/RoleContext';
 import {
-  BookOpen,
   ShieldCheck,
   User,
   ArrowRight,
   Loader2,
-  Sparkles,
-  Layers,
-  Inbox,
   AlertCircle,
-  Building2,
 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -69,45 +64,41 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-slate-100 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 relative overflow-hidden">
-      {/* Background Decorative Rings */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-violet-600/10 rounded-full blur-2xl pointer-events-none" />
-
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 relative">
       <div className="w-full max-w-xl z-10 space-y-8">
         {/* Brand Header */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl shadow-indigo-500/25 border border-indigo-400/30 mb-1">
-            <Building2 className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-2xl shadow-xs mb-1">
+            📚
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            Metropolitan Library
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+            Intelligent Library
           </h1>
-          <p className="text-sm sm:text-base text-slate-400 font-medium max-w-md mx-auto">
-            Intelligent Catalog & Circulation Management System with Autonomous AI Agent
+          <p className="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto">
+            Intelligent Catalog &amp; Circulation Management System with Autonomous AI Agent
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3.5 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-200 text-xs sm:text-sm flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs sm:text-sm flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Main Auth Card */}
-        <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
           {/* Section 1: Live Google Single Sign-On */}
           <div className="space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Patron Single Sign-On (SSO)
             </h2>
             <button
               type="button"
               disabled={isLoading || pendingAction !== null}
               onClick={handleGoogleLogin}
-              className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-sm shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 flex items-center justify-center space-x-3 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+              className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm shadow-xs transition-all duration-200 flex items-center justify-center space-x-3 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
             >
               {pendingAction === 'google' ? (
                 <>
@@ -122,15 +113,15 @@ export function LoginPage() {
                 </>
               )}
             </button>
-            <p className="text-[11px] text-slate-400 px-1 pt-1 text-center">
+            <p className="text-[11px] text-slate-500 px-1 pt-1 text-center">
               Authenticates securely via Google OAuth
             </p>
           </div>
 
           {/* Section Divider */}
           <div className="relative flex items-center justify-center">
-            <div className="border-t border-slate-700/80 w-full" />
-            <span className="bg-slate-800 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest absolute">
+            <div className="border-t border-slate-200 w-full" />
+            <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest absolute">
               or explore demo accounts
             </span>
           </div>
@@ -138,31 +129,31 @@ export function LoginPage() {
           {/* Section 2: Preset Demo Roles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 1. Patron Demo Card */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-700/60 flex flex-col justify-between space-y-4 hover:border-indigo-500/50 transition-colors">
+            <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4 hover:border-indigo-300 hover:bg-slate-50 transition-colors">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
                     <User className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                     Patron
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Demo Patron</h3>
-                  <p className="text-[11px] text-slate-400 font-mono">patron@example.com</p>
+                  <h3 className="font-bold text-sm text-slate-900">Demo Patron</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">patron@example.com</p>
                 </div>
-                <ul className="text-[11px] text-slate-400 space-y-1 pt-1">
+                <ul className="text-[11px] text-slate-600 space-y-1.5 pt-1">
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-indigo-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                     <span>Catalog Semantic Search</span>
                   </li>
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-indigo-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                     <span>14-Day Book Checkouts</span>
                   </li>
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-indigo-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                     <span>AI Librarian Chat Assistant</span>
                   </li>
                 </ul>
@@ -172,7 +163,7 @@ export function LoginPage() {
                 type="button"
                 disabled={isLoading}
                 onClick={() => handleDemoLogin('PATRON')}
-                className="w-full py-2 px-3 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white font-medium text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
               >
                 {pendingAction === 'patron' ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -186,31 +177,31 @@ export function LoginPage() {
             </div>
 
             {/* 2. Librarian Demo Card */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-700/60 flex flex-col justify-between space-y-4 hover:border-amber-500/50 transition-colors">
+            <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4 hover:border-amber-300 hover:bg-slate-50 transition-colors">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                     Staff
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Demo Librarian</h3>
-                  <p className="text-[11px] text-slate-400 font-mono">librarian@example.com</p>
+                  <h3 className="font-bold text-sm text-slate-900">Demo Librarian</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">librarian@example.com</p>
                 </div>
-                <ul className="text-[11px] text-slate-400 space-y-1 pt-1">
+                <ul className="text-[11px] text-slate-600 space-y-1.5 pt-1">
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-amber-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     <span>Catalog Curation (Add/Edit)</span>
                   </li>
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-amber-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     <span>Intake Reverse Logistics Desk</span>
                   </li>
                   <li className="flex items-center space-x-1.5">
-                    <span className="w-1 h-1 rounded-full bg-amber-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     <span>Live Queue Inventory Badge</span>
                   </li>
                 </ul>
@@ -220,7 +211,7 @@ export function LoginPage() {
                 type="button"
                 disabled={isLoading}
                 onClick={() => handleDemoLogin('LIBRARIAN')}
-                className="w-full py-2 px-3 rounded-lg bg-amber-600/80 hover:bg-amber-600 text-white font-medium text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                className="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
               >
                 {pendingAction === 'librarian' ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -234,11 +225,6 @@ export function LoginPage() {
             </div>
           </div>
         </div>
-
-        {/* Footer info */}
-        <p className="text-xs text-center text-slate-500">
-          Metropolitan Library Management System · Phase 4 Autonomous Agent Edition
-        </p>
       </div>
     </div>
   );
